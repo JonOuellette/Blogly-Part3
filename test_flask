@@ -1,0 +1,51 @@
+from unittest import TestCase
+
+from app import app
+from models import db, User
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///blogly'
+app.config['SQLALCHEMY_ECHO'] = False
+
+app.config['TESTING'] = True
+
+app.config['DEBUG_TB_HOSTS'] = ['dont-show-debug-toolbar']
+
+db.drop_all()
+db.create_all()
+
+class UserViewsTestCase(TestCase):
+    def setUp(self):
+
+        User.query.delete()
+
+        user = User(first_name = "John", last_name="Doe", image="https://www.freeiconspng.com/uploads/person-icon-5.png")
+        db.session.add(user)
+        db.session.commit()
+
+        self.user_id = user.id
+    
+    def tearDown(self):
+
+        db.session.rollback()
+    
+    def test_list_users(self):
+        with app.test_client() as client:
+            resp=client.get("/")
+            html = resp.get_data(as_text=True)
+    
+    def test_show_pet(self):
+        with app.test_client() as client:
+            resp = client.get(f"/{self.user_id}")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h1>John Doe</h1>', html)
+
+    def test_new_user(self):
+        with app.test_client() as client:
+            d = {"first_name": "Jane", "last_name": "Johnson", "image": "https://www.freeiconspng.com/uploads/person-icon-25.png" }
+            resp = client.post("/", data=d, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("<h1>Jane Johnson</h1>", html)
