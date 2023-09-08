@@ -177,3 +177,13 @@ def tags_new_form():
 @app.route("/tags/new", methods=["POST"])
 def new_tag():
     """Handles form submission to create a new tag"""
+
+    post_ids = [int(num) for num in request.form.getlist("posts")]
+    posts = Post.query.filter(Post.id.in_(post_ids)).all()
+    new_tag = Tag(name=request.form['name'], posts=posts)
+
+    db.session.add(new_tag)
+    db.session.commit()
+    flash(f"Tag '{new_tag.name}' added.")
+
+    return redirect("/tags")
