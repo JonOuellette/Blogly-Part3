@@ -2,7 +2,7 @@
 
 from flask import Flask, request, redirect, render_template, flash
 from flask_debugtoolbar import DebugToolbarExtension   
-from models import db, connect_db, User, Post
+from models import db, connect_db, User, Post, Tag
 
 app = Flask(__name__)
 
@@ -139,8 +139,12 @@ def update_post(post_id):
     post.title = request.form['title']
     post.content = request.form['content']
 
+    tag_ids = [int(num) for num in request.form.getlist("tags")]
+    post.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+
     db.session.add(post)
     db.session.commit()
+    flash(f"Post '{post.title}' edited.")
     flash(f"Post '{post.title}' edited.")
 
     return redirect(f"/users/{post.user_id}")
@@ -156,3 +160,20 @@ def posts_destroy(post_id):
     flash(f"Post '{post.title} deleted.")
 
     return redirect(f"/users/{post.user_id}")
+
+@app.route('/tags')
+def tags_index():
+    """shoes page with tag info"""
+    tags = Tag.query.all()
+    return render_template('tags/index.html', tags=tags)
+
+@app.route('/tags/new')
+def tags_new_form():
+    """Displays form to create a new tag"""
+    
+    posts = Post.query.all()
+    return render_template('tags/new.html', posts=posts)
+
+@app.route("/tags/new", methods=["POST"])
+def new_tag():
+    """Handles form submission to create a new tag"""
