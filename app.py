@@ -108,7 +108,7 @@ def post_form(user_id):
 def new_post(user_id):
     """Handles the submission for creating a new post for a specific user"""
     user = User.query.get_or_404(user_id)
-    tags_ids =[int(num) for num in request.form.getlist("tags")]
+    tag_ids =[int(num) for num in request.form.getlist("tags")]
     tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
     new_post = Post(title=request.form['title'],content=request.form['content'],user=user, tags=tags)
 
@@ -150,7 +150,7 @@ def update_post(post_id):
     return redirect(f"/users/{post.user_id}")
 
 @app.route('/posts/<int:post_id>/delete', methods=["POST"])
-def posts_destroy(post_id):
+def delete_post(post_id):
     """Handle form submission for deleting an existing post"""
 
     post = Post.query.get_or_404(post_id)
@@ -194,3 +194,37 @@ def show_tags(tag_id):
 
     tag = Tag.query.get.or_404(tag_id)
     return render_template('tags/show.html', tag=tag)
+
+@app.route('/tags/<int:tag_id>/edit')
+def edit_tags_form(tag_id):
+    """Displays form to edit tags"""
+
+    tag = Tag.query.get_or_404(tag_id)
+    posts = Post.query.all()
+    return render_template('tags/edit.html', tag=tag, posts = posts)    
+
+@app.route('/tags/<int:tag_id>/edit', methods=["POST"])
+def edit_tags(tag_id):
+    """Handle form submission for updating an existing tag"""
+
+    tag = Tag.query.get_or_404(tag_id)
+    tag.name = request.form['name']
+    post_ids = [int(num) for num in request.form.getlist("posts")]
+    tag.posts = Post.query.filter(Post.id.in_(post_ids)).all()
+
+    db.session.add(tag)
+    db.session.commit()
+    flash(f"Tag '{tag.name}' edited.")
+
+    return redirect("/tags")   
+
+@app.route('/tags/<int:tag_id>/delete', method=["POST"])
+def delete_tags(tag_id):
+    """Handles deletion of existing tags"""
+
+    tag=Tag.query.get_or_404(tag_id)
+    db.session.delete(tag)
+    db.session.commit()
+    flash(f"Tag '{tag.name}' deleted.")
+
+    return redirect("/tags")

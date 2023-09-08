@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from app import app
-from models import db, User
+from models import db, User, Post, Tag
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///blogly'
 app.config['SQLALCHEMY_ECHO'] = False
@@ -30,12 +30,16 @@ class UserViewsTestCase(TestCase):
     
     def test_list_users(self):
         with app.test_client() as client:
-            resp=client.get("/")
+            resp = client.get("/users")
             html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h2>Users</h2>', html)
+            self.assertIn('<h3>John Doe</h3>', html)
     
-    def test_show_pet(self):
+    def test_show_user(self):
         with app.test_client() as client:
-            resp = client.get(f"/{self.user_id}")
+            resp = client.get(f"/users/{self.user_id}")
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
@@ -43,9 +47,106 @@ class UserViewsTestCase(TestCase):
 
     def test_new_user(self):
         with app.test_client() as client:
-            d = {"first_name": "Jane", "last_name": "Johnson", "image": "https://www.freeiconspng.com/uploads/person-icon-25.png" }
-            resp = client.post("/", data=d, follow_redirects=True)
+            d = {
+                "first_name": "Jane",
+                "last_name": "Johnson",
+                "image_url": "https://www.freeiconspng.com/uploads/person-icon-25.png"
+            }
+            resp = client.post("/users/new", data=d, follow_redirects=True)
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
             self.assertIn("<h1>Jane Johnson</h1>", html)
+
+class PostViewsTestCase(TestCase):
+    def setUp(self):
+        User.query.delete()
+
+        user = User(first_name="John", last_name="Doe")
+        db.session.add(user)
+        db.session.commit()
+
+        self.user_id = user.id
+
+        Post.query.delete()
+
+        post = Post(title="Test Post", content="Test Content", user_id=self.user_id)
+        db.session.add(post)
+        db.session.commit()
+
+        self.post_id = post.id
+
+    def tearDown(self):
+        db.session.rollback()
+
+    def test_list_posts(self):
+        with app.test_client() as client:
+            resp = client.get(f"/users/{self.user_id}")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h2>Test Post</h2>', html)
+
+    def test_show_post(self):
+        with app.test_client() as client:
+            resp = client.get(f"/posts/{self.post_id}")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h2>Test Post</h2>', html)
+
+    def test_new_post(self):
+        with app.test_client() as client:
+            d = {"title": "New Test Post", "content": "New Test Content"}
+            resp = client.post(f"/users/{self.user_id}/posts/new", data=d, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("<h2>New Test Post</h2>", html)
+
+
+class TagViewsTestCase(TestCase):
+    def setUp(self):
+        Tag.query.delete()
+
+        tag = Tag(name="Test Tag")
+        db.session.add(tag)
+        db.session.commit()
+
+        self.tag_id = tag.id
+
+        Post.query.delete()
+
+        post = Post(title="Test Post", content="Test Content")
+        db.session.add(post)
+        db.session.commit()
+
+        self.post_id = post.id
+
+    def tearDown(self):
+        db.session.rollback()
+
+    def test_list_tags(self):
+        with app.test_client() as client:
+            resp = client.get("/tags")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h2>Test Tag</h2>', html)
+
+    def test_show_tag(self):
+        with app.test_client() as client:
+            resp = client.get(f"/tags/{self.tag_id}")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('<h2>Test Tag</h2>', html)
+
+    def test_new_tag(self):
+        with app.test_client() as client:
+            d = {"name": "New Test Tag", "posts": [str(self.post_id)]}
+            resp = client.post("/tags/new", data=d, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("<h2>New Test Tag</h2>", html)
